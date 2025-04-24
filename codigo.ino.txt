@@ -1,0 +1,155 @@
+#include <LiquidCrystal.h>
+
+LiquidCrystal lcd(12, 11, 10, 9, 8, 4, 2);
+
+const int Greenpin = 7;
+const int Yellowpin = 6;
+const int Redpin = 5;
+const int buzzer = 3;
+const int LDRpin = A0;
+
+int limiteOK = 50;
+int limiteAlerta = 80;
+
+void setup() {
+  pinMode(Greenpin, OUTPUT);
+  pinMode(Yellowpin, OUTPUT);
+  pinMode(Redpin, OUTPUT);
+  pinMode(buzzer, OUTPUT);
+  pinMode(LDRpin, INPUT);
+  Serial.begin(9600);
+  lcd.begin(16, 2);
+
+
+
+  // Criando um caractere personalizado para a logo
+  byte logo[8] = {
+    B00111,
+    B01010,
+    B10100,
+    B10100,
+    B10100,
+    B10100,
+    B01010,
+    B00111,
+  };
+  lcd.createChar(0, logo); // Definir o caractere personalizado
+
+  lcd.clear();
+  lcd.setCursor(7, 0); 
+  lcd.write(byte(0)); 
+  lcd.setCursor(5, 1);
+  lcd.print("CoreX");
+  delay(6000);            
+}
+
+bool messageDisplayed = false;  // Variável de controle para exibir a mensagem uma vez
+
+void loop() {
+  int LDRStatus = analogRead(LDRpin);
+  int luminosity = map(LDRStatus, 0, 1023, 0, 100);
+
+ 
+  if (!messageDisplayed) {
+    lcd.clear();
+    lcd.setCursor(0, 0);
+	lcd.print("Welcome to coreX");
+	delay(2000);
+	lcd.setCursor(5, 1); 
+	lcd.print("user!");
+    delay(6000);
+
+    
+    messageDisplayed = true;  // Marca que a mensagem foi exibida
+  }
+
+  // Imprimindo a luminosidade no monitor serial
+  Serial.print("Luminosity: ");
+  Serial.print(luminosity);
+  Serial.println("%");
+
+  // Se a luminosidade for abaixo do limiteOK
+  if (luminosity < limiteOK) { 
+    digitalWrite(Greenpin, HIGH);
+    digitalWrite(Yellowpin, LOW);
+    digitalWrite(Redpin, LOW);
+    noTone(buzzer);
+    
+    // Exibindo luminosidade e "Luz controlada!" enquanto a luminosidade estiver abaixo do limiteOK
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("luminosity: ");
+    lcd.print(luminosity);
+    lcd.print("%");
+    lcd.setCursor(0, 1);
+    lcd.print("Luz controlada!");
+    
+    while (luminosity < limiteOK) {
+      LDRStatus = analogRead(LDRpin);
+      luminosity = map(LDRStatus, 0, 1023, 0, 100);
+      
+      // Atualizando luminosidade no display
+      lcd.setCursor(0, 0);
+      lcd.print("luminosity: ");
+      lcd.print(luminosity);
+      lcd.print("%");
+
+      delay(500);  // Delay para atualizar o display
+    }
+    lcd.clear();  // Limpa o display quando a luminosidade sobe
+  } 
+  
+  // Se a luminosidade estiver entre limiteOK e limiteAlerta
+  else if (luminosity >= limiteOK && luminosity <= limiteAlerta) {
+    digitalWrite(Greenpin, LOW);
+    digitalWrite(Yellowpin, HIGH);
+    digitalWrite(Redpin, LOW);
+    
+    // Exibindo luminosidade e tocando o buzzer enquanto estiver nesse intervalo
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("luminosity: ");
+    lcd.print(luminosity);
+    lcd.print("%");
+    lcd.setCursor(4, 1);
+    lcd.print("LimiteOK");
+    
+    tone(buzzer, 500);  // Buzzer começa a tocar
+    
+    // Exibe a mensagem e toca o buzzer por 3 segundos simultaneamente
+    delay(3000);  // Aguarda 3 segundos com o buzzer ligado
+    noTone(buzzer);  // Desliga o buzzer após 3 segundos
+    
+    lcd.clear();   // Limpa o display quando a luminosidade sai da faixa
+  } 
+  
+  // Se a luminosidade for maior que limiteAlerta
+  else if (luminosity > limiteAlerta) {
+    digitalWrite(Greenpin, LOW);
+    digitalWrite(Yellowpin, LOW);
+    digitalWrite(Redpin, HIGH);
+    tone(buzzer, 1000);
+
+    // Exibindo luminosidade e "ALERTA!" enquanto luminosidade for maior que limiteAlerta
+    lcd.clear();
+    while (luminosity > limiteAlerta) {
+      LDRStatus = analogRead(LDRpin);
+      luminosity = map(LDRStatus, 0, 1023, 0, 100);
+
+      // Atualizando luminosidade no display
+      lcd.setCursor(0, 0);
+      lcd.print("Luminosity: ");
+      lcd.print(luminosity);
+      lcd.print("%");
+      lcd.setCursor(5, 1);
+      lcd.print("ALERTA!");
+
+      delay(500);  // Delay para atualizar o display
+    }
+
+    noTone(buzzer);  // Desliga o buzzer após a luminosidade abaixar
+    lcd.clear();   // Limpa o display quando a luminosidade sair da faixa
+  }
+
+  delay(1000);  // Delay de 1 segundo entre as leituras
+}
